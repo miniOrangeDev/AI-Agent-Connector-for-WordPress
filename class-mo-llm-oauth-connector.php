@@ -1,15 +1,15 @@
 <?php
 /**
- * Plugin Name: LLM OAuth Connector
+ * Plugin Name: AI Agent Connector for WordPress
  * Plugin URI:  https://miniorange.com/
- * Description: A lightweight, standalone OAuth 2.0/2.1 Authorization Code Grant server with PKCE support for LLMs like Cursor and ChatGPT.
+ * Description: Turn WordPress into a secure OAuth 2.0 server so AI assistants (ChatGPT, Cursor) can connect with user consent. Authorization Code + PKCE, no external service required.
  * Version:     0.1.0
  * Author:      miniOrange
  * License:     Expat
  * License URI: https://plugins.miniorange.com/mit-license
- * Text Domain: llm-oauth-connector
+ * Text Domain: ai-agent-connector-for-wordpress
  *
- * @package llm-oauth-connector
+ * @package ai-agent-connector-for-wordpress
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * LLM OAuth Connector class.
+ * AI Agent Connector for WordPress class.
  */
 class MO_LLM_OAuth_Connector {
 
@@ -29,7 +29,7 @@ class MO_LLM_OAuth_Connector {
 	private $namespace = 'llm-oauth/v1';
 
 	/**
-	 * Constructor for LLM OAuth Connector.
+	 * Constructor for AI Agent Connector for WordPress.
 	 */
 	public function __construct() {
 		register_activation_hook( __FILE__, array( $this, 'mo_llm_activate' ) );
@@ -106,23 +106,19 @@ class MO_LLM_OAuth_Connector {
             // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] is validated by wp_unslash().
 			$auth_header = wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] );
 		}
-
 		if ( is_string( $auth_header ) && preg_match( '/Bearer\s+([A-Za-z0-9\-_.~+\/=]+)/', $auth_header, $m ) ) {
 			$token = substr( $m[1], 0, 256 );
 			$token = sanitize_text_field( $token );
 		}
-
 		if ( empty( $token ) ) {
 			return $result;
 		}
 		$token_data = get_transient( 'llm_access_token_' . $token );
-
 		if ( ! $token_data ) {
 			return $result;
 		}
 
 		$uid = (int) $token_data['user_id'];
-
 		if ( ! $uid ) {
 			return $result;
 		}
@@ -153,7 +149,7 @@ class MO_LLM_OAuth_Connector {
 	}
 
 	/**
-	 * Add Custom Rewrite Rules
+	 * Add rewrite rules.
 	 */
 	public function mo_llm_add_rewrite_rules() {
 		add_rewrite_rule( '^llm-oauth/authorize/?$', 'index.php?llm_oauth=authorize', 'top' );
@@ -166,7 +162,7 @@ class MO_LLM_OAuth_Connector {
 	 * @param array $vars The query vars.
 	 * @return array The query vars.
 	 */
-	public function mo_llm_register_query_vars( $vars ) {
+	public function mo_llm_register_query_vars($vars) {
 		$vars[] = 'llm_oauth';
 		$vars[] = 'llm_oauth_discovery';
 		return $vars;
@@ -179,9 +175,7 @@ class MO_LLM_OAuth_Connector {
 		if ( get_query_var( 'llm_oauth' ) !== 'authorize' ) {
 			return;
 		}
-
 		if ( ! is_user_logged_in() ) {
-
 			$path = '/llm-oauth/authorize';
 
 			if ( isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ) {
@@ -189,10 +183,8 @@ class MO_LLM_OAuth_Connector {
 				$raw_path = wp_unslash( $_SERVER['REQUEST_URI'] );
 				$path     = esc_url_raw( $raw_path );
 			}
-
 			$current_url = home_url( $path );
 			$login_url   = wp_login_url( $current_url );
-
 			wp_safe_redirect( $login_url );
 			exit;
 		}
@@ -257,7 +249,7 @@ class MO_LLM_OAuth_Connector {
 		<!DOCTYPE html>
 		<html>
 		<head>
-			<title>Authorize LLM</title>
+			<title>Authorize AI Agent</title>
 			<style>
 				body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; background: #f0f0f1; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
 				.card { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
@@ -270,8 +262,8 @@ class MO_LLM_OAuth_Connector {
 		</head>
 		<body>
 			<div class="card">
-				<h2>Authorize LLM Access</h2>
-				<p>LLM is requesting access to your WordPress site.</p>
+				<h2>Authorize AI Agent Access</h2>
+				<p>AI Agent is requesting access to your WordPress site.</p>
 				<div class="user-info">
 					Logged in as: <strong><?php echo esc_html( wp_get_current_user()->display_name ); ?></strong>
 				</div>
@@ -314,7 +306,7 @@ class MO_LLM_OAuth_Connector {
 		if ( false === strpos( $uri, '.well-known/oauth-authorization-server' ) ) {
 			return;
 		}
-
+		$issuer = home_url('/wp-json/mcp/mcp-adapter-default-server');
 		status_header( 200 );
 		header( 'Content-Type: application/json' );
 		header( 'Cache-Control: no-cache' );
@@ -343,7 +335,6 @@ class MO_LLM_OAuth_Connector {
 	 */
 	public function mo_llm_handle_token_request( $request ) {
 		$params = $request->get_params();
-
 		$client_id     = isset( $params['client_id'] ) ? sanitize_text_field( $params['client_id'] ) : '';
 		$client_secret = isset( $params['client_secret'] ) ? sanitize_text_field( $params['client_secret'] ) : '';
 		$code          = isset( $params['code'] ) ? sanitize_text_field( $params['code'] ) : '';
@@ -357,24 +348,17 @@ class MO_LLM_OAuth_Connector {
 		if ( $client_id !== $stored_id ) {
 			return new WP_Error( 'invalid_client', 'Invalid request.', array( 'status' => 401 ) );
 		}
-
 		if ( 'refresh_token' === $grant_type ) {
-
 			$refresh_token = isset( $params['refresh_token'] ) ? sanitize_text_field( $params['refresh_token'] ) : '';
-
 			if ( empty( $refresh_token ) ) {
 				return new WP_Error( 'invalid_request', 'Missing refresh_token', array( 'status' => 400 ) );
 			}
-
 			$stored = get_transient( 'llm_refresh_token_' . $refresh_token );
-
 			if ( ! $stored ) {
 				return new WP_Error( 'invalid_grant', 'Invalid refresh token', array( 'status' => 400 ) );
 			}
-
 			$user_id   = $stored['user_id'];
 			$client_id = $stored['client_id'];
-
 			delete_transient( 'llm_refresh_token_' . $refresh_token );
 
 			$access_token      = bin2hex( random_bytes( 40 ) );
@@ -399,7 +383,6 @@ class MO_LLM_OAuth_Connector {
 				),
 				30 * 24 * 60 * 60
 			);
-
 			return array(
 				'access_token'  => $access_token,
 				'token_type'    => 'Bearer',
@@ -484,7 +467,6 @@ class MO_LLM_OAuth_Connector {
 		}
 
 		$token = null;
-
 		$auth_header = '';
 		if ( isset( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
 			$auth_header = sanitize_text_field(
@@ -495,7 +477,6 @@ class MO_LLM_OAuth_Connector {
 				wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] )
 			);
 		}
-
 		if ( $auth_header && preg_match( '/Bearer\s+([A-Za-z0-9\-_.~+\/=]+)/', $auth_header, $m ) ) {
 			$token = substr( $m[1], 0, 256 );
 		}
@@ -504,13 +485,11 @@ class MO_LLM_OAuth_Connector {
 			return $user_id;
 		}
 		$token_data = get_transient( 'llm_access_token_' . $token );
-
 		if ( ! $token_data || empty( $token_data['user_id'] ) ) {
 			return $user_id;
 		}
 
 		$uid = (int) $token_data['user_id'];
-
 		wp_set_current_user( $uid );
 
 		return $uid;
@@ -530,7 +509,7 @@ class MO_LLM_OAuth_Connector {
 	 * Register admin settings page.
 	 */
 	public function mo_llm_add_admin_menu() {
-		add_options_page( 'LLM OAuth Connector', 'LLM OAuth Connector', 'manage_options', 'llm-oauth-connector', array( $this, 'mo_llm_render_admin_page' ) );
+		add_options_page( 'AI Agent Connector for WordPress', 'AI Agent Connector for WordPress', 'manage_options', 'ai-agent-connector-for-wordpress', array( $this, 'mo_llm_render_admin_page' ) );
 	}
 
 	/**
@@ -538,7 +517,7 @@ class MO_LLM_OAuth_Connector {
 	 */
 	public function mo_llm_render_admin_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Invalid request.', 'llm-oauth-connector' ), '', array( 'response' => 403 ) );
+			wp_die( esc_html__( 'Invalid request.', 'ai-agent-connector-for-wordpress' ), '', array( 'response' => 403 ) );
 		}
 
 		$client_id     = get_option( 'mo_llm_oauth_client_id' );
@@ -546,23 +525,23 @@ class MO_LLM_OAuth_Connector {
 
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html__( 'LLM OAuth Connector', 'llm-oauth-connector' ); ?></h1>
+			<h1><?php echo esc_html__( 'AI Agent Connector for WordPress', 'ai-agent-connector-for-wordpress' ); ?></h1>
 			<div class="notice notice-warning inline">
-				<p><strong><?php echo esc_html__( 'Important:', 'llm-oauth-connector' ); ?></strong> <?php echo esc_html__( 'If the Authorization URL below gives a 404 error, go to', 'llm-oauth-connector' ); ?> <a href="<?php echo esc_url( admin_url( 'options-permalink.php' ) ); ?>"><?php echo esc_html__( 'Settings &rarr; Permalinks', 'llm-oauth-connector' ); ?></a> <?php echo esc_html__( 'and click "Save Changes" to refresh the rewrite rules.', 'llm-oauth-connector' ); ?></p>
+				<p><strong><?php echo esc_html__( 'Important:', 'ai-agent-connector-for-wordpress' ); ?></strong> <?php echo esc_html__( 'If the Authorization URL below gives a 404 error, go to', 'ai-agent-connector-for-wordpress' ); ?> <a href="<?php echo esc_url( admin_url( 'options-permalink.php' ) ); ?>"><?php echo esc_html__( 'Settings &rarr; Permalinks', 'ai-agent-connector-for-wordpress' ); ?></a> <?php echo esc_html__( 'and click "Save Changes" to refresh the rewrite rules.', 'ai-agent-connector-for-wordpress' ); ?></p>
 			</div>
 			
 			<div class="card" style="max-width: 800px; padding: 20px; margin-top: 20px; background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
 
-				<h2><?php echo esc_html__( 'Client Credentials', 'llm-oauth-connector' ); ?></h2>
+				<h2><?php echo esc_html__( 'Client Credentials', 'ai-agent-connector-for-wordpress' ); ?></h2>
 				<table class="form-table">
 					<tr>
-						<th scope="row"><?php echo esc_html__( 'Client ID', 'llm-oauth-connector' ); ?></th>
+						<th scope="row"><?php echo esc_html__( 'Client ID', 'ai-agent-connector-for-wordpress' ); ?></th>
 						<td>
 							<code style="background:#f0f0f0; padding: 8px 12px; border-radius: 3px; display: inline-block; font-size: 13px; word-break: break-all;"><?php echo esc_html( $client_id ); ?></code>
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><?php echo esc_html__( 'Client Secret', 'llm-oauth-connector' ); ?></th>
+						<th scope="row"><?php echo esc_html__( 'Client Secret', 'ai-agent-connector-for-wordpress' ); ?></th>
 						<td>
 							<code style="background:#f0f0f0; padding: 8px 12px; border-radius: 3px; display: inline-block; font-size: 13px; word-break: break-all;"><?php echo esc_html( $client_secret ); ?></code>
 							<br>
