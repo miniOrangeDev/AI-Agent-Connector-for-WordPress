@@ -1,4 +1,4 @@
-=== LLM OAuth Connector ===
+=== AI Agent Connector for WordPress ===
 Contributors: miniOrange
 Donate link: https://plugins.miniorange.com
 Requires at least: 5.2
@@ -8,91 +8,89 @@ Stable tag: 0.1.0
 License: Expat
 License URI: https://plugins.miniorange.com/mit-license
 
-A lightweight, standalone OAuth 2.0/2.1 Authorization Code Grant server plugin for WordPress with PKCE support, designed for LLMs like Cursor and ChatGPT.
+Turn your WordPress site into a secure OAuth 2.0 server so AI assistants like ChatGPT and Cursor can connect with user consent. Lightweight, standards-based (Authorization Code + PKCE), and ready in minutes.
+
+## Documentation
+
+**Step-by-step setup with ChatGPT and MCP Adapter**
+
+Get your WordPress site talking to ChatGPT (or other LLMs) with our illustrated guide:
+
+→ [Connect ChatGPT to WordPress Using MCP Adapter and LLM OAuth Connector](https://plugins.miniorange.com/wordpress-chatgpt-integration)
 
 ## Installation
 
-1. Upload the `llm-oauth-connector` folder to `/wp-content/plugins/`
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Go to **Settings → LLM OAuth Connector** to view your credentials
+1. Upload the plugin folder to `/wp-content/plugins/` (or install via **Plugins → Add New → Upload**).
+2. Activate the plugin from the **Plugins** menu.
+3. Open **Settings → AI Agent Connector for WordPress** to view your Client ID and Client Secret.
+
+Your credentials are generated automatically on first activation—no signup or external service required.
 
 ## How It Works
 
-### The OAuth Flow
+### The OAuth flow (user perspective)
 
-1. **Authorization Request**
-   - LLM redirects you to the Authorization URL
-   - You must be logged into WordPress (or will be prompted to log in)
+1. **Authorization request** — The AI app sends you to your site’s authorization URL. If you’re not logged in, WordPress prompts you to sign in first.
 
-2. **User Approval**
-   - You see a clean authorization screen
-   - Click "Authorize Access" to grant permission
+2. **Consent** — You see a simple “Authorize AI Agent Access” screen. One click grants access.
 
-3. **Authorization Code**
-   - WordPress generates a one-time authorization code
-   - You're redirected back to LLM with the code
+3. **Redirect with code** — Your site issues a one-time authorization code and sends you back to the AI app.
 
-4. **Token Exchange**
-   - LLM exchanges the authorization code for an access token
-   - The code is single-use and expires after 5 minutes
+4. **Token exchange** — The app exchanges the code for an access token (and optional refresh token). The code is invalidated immediately and expires in 5 minutes.
 
-5. **API Access**
-   - LLM uses the access token in the `Authorization: Bearer <token>` header
-   - The token is valid for 24 hours
-   - A refresh token is also provided (valid for 30 days)
+5. **Authenticated API access** — The app calls your WordPress REST API using `Authorization: Bearer <token>`. Access tokens last 24 hours; refresh tokens last 30 days.
 
-### Security Features
+### Security at a glance
 
-- **Client Credentials Validation** - Only registered clients can request tokens
-- **PKCE (S256)** - Optional code_challenge/code_verifier; when used, client_secret is not required at token endpoint
-- **One-Time Authorization Codes** - Codes are deleted after use
-- **Time-Limited Tokens** - Access tokens expire after 24 hours; refresh tokens after 30 days
-- **Secure Token Storage** - Uses WordPress transients
-- **Nonce Protection** - CSRF protection on authorization form (`llm_oauth_approve`)
+* **Client credentials** — Only the client registered in your settings can obtain tokens.
+* **PKCE (S256)** — Optional; when used, the client can skip sending the client secret at the token endpoint (ideal for public clients like ChatGPT).
+* **Single-use codes** — Authorization codes are deleted after use and expire in 5 minutes.
+* **Short-lived tokens** — Access tokens: 24 hours. Refresh tokens: 30 days.
+* **Secure storage** — Tokens and codes are stored via WordPress transients.
+* **CSRF protection** — Authorization form is protected with a nonce (`llm_oauth_approve`).
 
-## Endpoints
+## API Endpoints
 
-### Discovery Endpoint (OAuth 2.0 Authorization Server Metadata)
-```
-GET /.well-known/oauth-authorization-server
-```
+### Discovery (OAuth 2.0 Authorization Server Metadata)
 
-Returns JSON with `issuer`, `authorization_endpoint`, `token_endpoint`, `response_types_supported`, `grant_types_supported`, `code_challenge_methods_supported` (S256), `token_endpoint_auth_methods_supported` (none, client_secret_post), `scopes_supported` (basic), etc. Clients can use this to auto-configure.
+`GET /.well-known/oauth-authorization-server`
 
-### Authorization Endpoint
-```
-GET /llm-oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code
-```
+Returns JSON with `issuer`, `authorization_endpoint`, `token_endpoint`, supported response types, grant types, PKCE method (S256), token endpoint auth methods (none, client_secret_post), and `scopes_supported` (basic). Clients can use this to auto-configure.
 
-(Query-string form `/?llm_oauth=authorize&...` also works.)
+### Authorization
 
-**Parameters:**
-- `client_id` (required) - Your OAuth client ID
-- `redirect_uri` (required) - Where to redirect after authorization
-- `response_type` (required) - Must be `code`
-- `state` (optional) - State parameter for CSRF protection
-- `code_challenge` (optional) - PKCE: base64url(SHA256(code_verifier))
-- `code_challenge_method` (optional) - Must be `S256` when using PKCE
+`GET /llm-oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code`
 
-### Token Endpoint
-```
-POST /wp-json/llm-oauth/v1/token
-```
+Alternative: `/?llm_oauth=authorize&...` (query-string form).
+
+* `client_id` (required) — Your OAuth client ID from plugin settings.
+* `redirect_uri` (required) — Callback URL after authorization.
+* `response_type` (required) — Must be `code`.
+* `state` (optional) — State parameter for CSRF protection.
+* `code_challenge` (optional) — PKCE: base64url(SHA256(code_verifier)).
+* `code_challenge_method` (optional) — Must be `S256` when using PKCE.
+
+### Token
+
+`POST /wp-json/llm-oauth/v1/token`
 
 **Authorization code exchange (form-data or JSON):**
-- `grant_type` (required) - `authorization_code`
-- `code` (required) - The one-time authorization code
-- `client_id` (required) - Your OAuth client ID
-- `redirect_uri` (required) - Must match the redirect_uri used in the authorization request
-- `client_secret` (required if no PKCE) - Your OAuth client secret
-- `code_verifier` (required if PKCE was used) - The code verifier for the code_challenge sent at authorize
+
+* `grant_type` (required) — `authorization_code`
+* `code` (required) — One-time authorization code
+* `client_id` (required) — Your OAuth client ID
+* `redirect_uri` (required) — Must match the redirect_uri used in the authorization request
+* `client_secret` (required if no PKCE) — Your OAuth client secret
+* `code_verifier` (required if PKCE was used) — Code verifier for the code_challenge sent at authorize
 
 **Refresh token exchange:**
-- `grant_type` (required) - `refresh_token`
-- `refresh_token` (required) - Valid refresh token from a previous token response
-- `client_id` (required) - Your OAuth client ID
 
-**Response:**
+* `grant_type` (required) — `refresh_token`
+* `refresh_token` (required) — Valid refresh token from a previous token response
+* `client_id` (required) — Your OAuth client ID
+
+**Example response:**
+
 ```json
 {
   "access_token": "your_access_token",
@@ -105,52 +103,56 @@ POST /wp-json/llm-oauth/v1/token
 
 ## Troubleshooting
 
-### 404 on Authorization or Discovery URL
-- The plugin adds rewrite rules on activation. If `/llm-oauth/authorize` or `/.well-known/oauth-authorization-server` returns 404, go to **Settings → Permalinks** and click **Save Changes** to refresh rewrite rules.
+### 404 on authorization or discovery URL
 
-### "Invalid Client ID" Error
-- Make sure you're using the correct Client ID from Settings → LLM OAuth Connector
-- The Client ID is generated on plugin activation
+The plugin registers rewrite rules on activation. If `/llm-oauth/authorize` or `/.well-known/oauth-authorization-server` returns 404, go to **Settings → Permalinks** and click **Save Changes** to flush rewrite rules.
+
+### "Invalid Client ID"
+
+Use the exact Client ID from **Settings → AI Agent Connector for WordPress**. It is generated when you first activate the plugin.
 
 ### "Authorization code is invalid or expired"
-- Authorization codes expire after 5 minutes
-- Codes can only be used once
-- Request a new authorization code
 
-### Token Not Working
-- Check that you're sending the token in the `Authorization: Bearer <token>` header
-- Verify the token hasn't expired (24 hours)
-- Make sure the token format is correct (no extra spaces)
+Codes expire after 5 minutes and can be used only once. Complete the token exchange immediately or start a new authorization flow.
 
-### Redirect URI Mismatch
-- Ensure the `redirect_uri` in the token request matches the one used in authorization
-- The redirect URI must be exactly the same
+### Token not working
+
+* Send the token in the header: `Authorization: Bearer <token>`.
+* Confirm the token has not expired (24-hour lifetime).
+* Ensure there are no extra spaces or invalid characters in the token.
+
+### Redirect URI mismatch
+
+The `redirect_uri` in the token request must match the one used in the authorization request exactly (including trailing slashes if applicable).
 
 ## Credentials
 
-Client ID and Client Secret are generated automatically on first plugin activation and stored in WordPress options. They are shown on **Settings → LLM OAuth Connector**. There is no in-plugin “Regenerate” action; to change credentials you would need to update those options (e.g. via code or another plugin). Changing them invalidates existing tokens and authorization codes.
+Client ID and Client Secret are created automatically on first activation and stored in WordPress options. They appear on **Settings → AI Agent Connector for WordPress**. There is no in-plugin “Regenerate” button; to change them you must update the options (e.g. via code or another plugin). Changing credentials invalidates all existing tokens and authorization codes.
 
 ## Technical Details
 
-### Token Storage
-- Uses WordPress transients API
-- Access tokens stored with 24-hour expiration
-- Refresh tokens stored with 30-day expiration
-- Authorization codes stored with 5-minute expiration
+### Token and code storage
 
-### User Authentication
-- Uses WordPress's built-in user authentication
-- Bearer tokens are validated via `determine_current_user` filter
-- Works alongside WordPress cookie authentication
+* WordPress transients API.
+* Access tokens: 24-hour expiration.
+* Refresh tokens: 30-day expiration.
+* Authorization codes: 5-minute expiration.
+
+### Authentication
+
+* Authorization screen and login use WordPress’s built-in user system.
+* Bearer tokens are validated via the `determine_current_user` filter and set the current user for REST requests.
+* Works alongside normal WordPress cookie authentication.
 
 ### Compatibility
-- WordPress 5.0+
-- PHP 7.0+ (uses `random_bytes`, REST API)
-- Requires REST API (enabled by default in WordPress)
 
-### Activation / Permalinks
+* WordPress 5.0+
+* PHP 7.4+ (uses `random_bytes`, REST API)
+* Requires the WordPress REST API (enabled by default)
 
-On activation the plugin registers rewrite rules for `/llm-oauth/authorize` and `/.well-known/oauth-authorization-server` and flushes rewrite rules so these URLs work immediately. If the authorization URL returns 404, go to **Settings → Permalinks** and click **Save Changes** to refresh rewrite rules.
+### Permalinks
+
+On activation, the plugin adds rewrite rules for `/llm-oauth/authorize` and `/.well-known/oauth-authorization-server` and flushes rules. If you still see 404s, visit **Settings → Permalinks** and click **Save Changes**.
 
 ## License
 
@@ -158,7 +160,7 @@ Expat (MIT). See License URI in the plugin header.
 
 ## Support
 
-For issues or questions:
-1. Check the Troubleshooting section above
-2. Verify your WordPress REST API is accessible
-3. Check WordPress debug logs for detailed error messages
+1. Follow the [setup guide](https://plugins.miniorange.com/wordpress-chatgpt-integration) for ChatGPT and MCP Adapter.
+2. Use the Troubleshooting section above.
+3. Confirm your WordPress REST API is reachable.
+4. Check WordPress debug logs for detailed errors.
