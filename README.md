@@ -1,12 +1,12 @@
-=== AI Agent Connector for WordPress ===
-Contributors: miniOrange
-Donate link: https://plugins.miniorange.com
-Requires at least: 5.2
-Tested up to: 6.9
-Requires PHP: 7.4
-Stable tag: 0.1.0
-License: Expat
-License URI: https://plugins.miniorange.com/mit-license
+=== AI Agent Connector for WordPress ===  
+Contributors: miniOrange  
+Donate link: https://plugins.miniorange.com  
+Requires at least: 5.2  
+Tested up to: 6.9  
+Requires PHP: 7.4  
+Stable tag: 0.1.0  
+License: Expat  
+License URI: https://plugins.miniorange.com/mit-license  
 
 Turn your WordPress site into a secure OAuth 2.0 server so AI assistants like ChatGPT and Cursor can connect with user consent. Lightweight, standards-based (Authorization Code + PKCE), and ready in minutes.
 
